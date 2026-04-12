@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: Homestay
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: false
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS}
