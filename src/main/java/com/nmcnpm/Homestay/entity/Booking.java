@@ -48,7 +48,7 @@ public class Booking {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_account_id",
             foreignKey = @ForeignKey(name = "fk_bookings_created_by"))
-    private Account createdByAccount;
+    Account createdByAccount;
 
     // -------------------------------------------------------------------------
     // Định danh người dùng (frontend đang dùng email làm userId)
@@ -117,13 +117,36 @@ public class Booking {
 
     /**
      * Phần trăm thanh toán trước: 30 hoặc 100.
-     * Constraint DB: CHECK (payment_percent IN (30, 100)).
      */
     @Column(name = "payment_percent")
     Integer paymentPercent;
 
     @Column(name = "payment_amount", precision = 14, scale = 2)
     BigDecimal paymentAmount;
+
+    // -------------------------------------------------------------------------
+    // QR Payment fields (semi-dynamic QR)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Số tiền VND thực tế cần chuyển khoản (totalAmount * paymentPercent / 100).
+     * Được khóa cứng khi tạo booking, không thay đổi.
+     */
+    @Column(name = "pay_amount_vnd", precision = 14, scale = 2)
+    BigDecimal payAmountVnd;
+
+    /**
+     * Nội dung chuyển khoản cố định, ví dụ: "Khach Hang dat phong RM-205".
+     */
+    @Column(name = "transfer_content", length = 255)
+    String transferContent;
+
+    /**
+     * Thời điểm QR hết hạn (createdAt + 5 phút).
+     * Null nếu paymentMethod != bank.
+     */
+    @Column(name = "payment_expires_at")
+    OffsetDateTime paymentExpiresAt;
 
     // -------------------------------------------------------------------------
     // Khác

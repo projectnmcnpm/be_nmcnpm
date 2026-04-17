@@ -19,9 +19,42 @@ spring:
   flyway:
     enabled: false
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 20MB
+
 server:
   port: 8080
 
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS}
+  refresh-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS}
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+  folder: homestay/rooms
+
+# ─────────────────────────────────────────────
+# Payment QR Configuration (VietQR semi-dynamic)
+# ─────────────────────────────────────────────
+payment:
+  qr:
+    # Mã BIN ngân hàng ((970436) Vietcombank)
+    bank-bin: ${PAYMENT_QR_BANK_BIN:970436}
+    # Số tài khoản nhận tiền
+    account-no: ${PAYMENT_QR_ACCOUNT_NO:1032756049}
+    # Tên chủ tài khoản
+    account-name: ${PAYMENT_QR_ACCOUNT_NAME:NGUYEN QUOC TOAN}
+    # Template QR (compact2 / qr_only / print)
+    template: ${PAYMENT_QR_TEMPLATE:compact2}
+    # Base URL của VietQR image API
+    provider-base-url: ${PAYMENT_QR_PROVIDER_BASE_URL:https://img.vietqr.io/image}
+    # Thời gian hiệu lực QR tính bằng phút
+    ttl-minutes: 5
+    # Giới hạn số booking bank pending đồng thời mỗi user
+    max-pending-per-user: 2
