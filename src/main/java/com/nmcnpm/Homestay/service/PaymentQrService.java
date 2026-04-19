@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -71,10 +72,24 @@ public class PaymentQrService {
      * @param roomName  Tên phòng (vd: "RM-205", "Netflix & Chill Suite")
      */
     public String buildTransferContent(String roomName) {
-        // Normalize: bỏ ký tự đặc biệt, chỉ giữ chữ/số/khoảng trắng/gạch ngang
-        String normalizedRoom = roomName == null ? "ROOM"
-                : roomName.replaceAll("[^a-zA-Z0-9\\s\\-]", "").trim();
+        String normalizedRoom = normalizeVietnameseToAscii(roomName);
         return "Khach Hang dat phong " + normalizedRoom;
+    }
+
+    private String normalizeVietnameseToAscii(String value) {
+        if (value == null || value.isBlank()) {
+            return "ROOM";
+        }
+
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .replace("đ", "d")
+                .replace("Đ", "D")
+                .replaceAll("[^a-zA-Z0-9\\s\\-]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        return normalized.isBlank() ? "ROOM" : normalized;
     }
 
     /**

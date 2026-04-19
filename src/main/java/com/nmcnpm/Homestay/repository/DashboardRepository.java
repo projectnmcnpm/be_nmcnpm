@@ -24,13 +24,14 @@ import java.util.UUID;
 public interface DashboardRepository extends JpaRepository<Booking, UUID> {
 
     // ------------------------------------------------------------------
-    // Tổng doanh thu từ booking completed
+    // Tổng doanh thu từ booking đã thanh toán đủ và chưa hoàn tiền
     // ------------------------------------------------------------------
     @Query("""
             SELECT COALESCE(SUM(b.totalAmount), 0)
             FROM Booking b
             WHERE b.deletedAt IS NULL
-              AND b.status = com.nmcnpm.Homestay.enums.BookingStatus.COMPLETED
+              AND b.paymentPercent = 100
+              AND (b.note IS NULL OR UPPER(b.note) NOT LIKE '%REFUND_STATUS=REFUNDED%')
             """)
     BigDecimal sumCompletedRevenue();
 

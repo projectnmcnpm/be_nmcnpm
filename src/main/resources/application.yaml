@@ -9,7 +9,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
@@ -58,3 +58,12 @@ payment:
     ttl-minutes: 5
     # Giới hạn số booking bank pending đồng thời mỗi user
     max-pending-per-user: 2
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000,http://127.0.0.1:3000
+  seed:
+    enabled: ${APP_SEED_ENABLED}
+    admin-email: ${APP_ADMIN_EMAIL}
+    admin-password: ${APP_ADMIN_PASSWORD}
+    admin-name: ${APP_ADMIN_NAME}

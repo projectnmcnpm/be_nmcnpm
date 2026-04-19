@@ -1,12 +1,17 @@
 package com.nmcnpm.Homestay.service;
 
 import com.nmcnpm.Homestay.dto.request.UpdateRoomStatusRequest;
+import com.nmcnpm.Homestay.dto.response.RoomAvailabilityDayResponse;
+import com.nmcnpm.Homestay.dto.request.UpdateRoomRequest;
 import com.nmcnpm.Homestay.dto.response.PagedResponse;
 import com.nmcnpm.Homestay.dto.response.RoomResponse;
+import com.nmcnpm.Homestay.entity.Booking;
 import com.nmcnpm.Homestay.entity.Room;
+import com.nmcnpm.Homestay.enums.BookingType;
 import com.nmcnpm.Homestay.enums.RoomStatus;
 import com.nmcnpm.Homestay.exception.AppException;
 import com.nmcnpm.Homestay.exception.ErrorCode;
+import com.nmcnpm.Homestay.repository.BookingRepository;
 import com.nmcnpm.Homestay.mapper.RoomMapper;
 import com.nmcnpm.Homestay.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +25,10 @@ import com.nmcnpm.Homestay.dto.request.CreateRoomRequest;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -31,8 +40,16 @@ public class RoomService {
 
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final int MAX_PAGE_SIZE     = 100;
+    private static final int DEFAULT_AVAILABILITY_DAYS = 6;
+    private static final int MAX_AVAILABILITY_DAYS = 14;
+    private static final int CLEANUP_MINUTES = 20;
+    private static final LocalTime DEFAULT_DAY_CHECKIN_TIME = LocalTime.of(14, 0);
+    private static final LocalTime DEFAULT_DAY_CHECKOUT_TIME = LocalTime.of(12, 0);
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final RoomRepository roomRepository;
+    private final BookingRepository bookingRepository;
     private final RoomMapper roomMapper;
     private final CloudinaryService cloudinaryService;
 
@@ -44,9 +61,10 @@ public class RoomService {
 
         Pageable pageable = buildPageable(page, size, sort);
         RoomStatus roomStatus = parseStatusOrNull(status);
-        String keyword = (search != null && !search.isBlank()) ? search.trim() : null;
-
-        Page<Room> roomPage = roomRepository.findAllByFilter(roomStatus, keyword, pageable);
+        String searchPattern = (search != null && !search.isBlank())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        Page<Room> roomPage = roomRepository.findAllByFilter(roomStatus, searchPattern, pageable);
 
         List<RoomResponse> content = roomPage.getContent()
                 .stream()
@@ -63,6 +81,21 @@ public class RoomService {
         return roomMapper.toResponse(findRoomByStringId(id));
     }
 
+    public List<RoomAvailabilityDayResponse> getRoomAvailability(String id, Integer daysParam) {
+        Room room = findRoomByStringId(id);
+        int days = daysParam == null
+                ? DEFAULT_AVAILABILITY_DAYS
+                : Math.min(Math.max(daysParam, 1), MAX_AVAILABILITY_DAYS);
+
+        LocalDate fromDate = LocalDate.now();
+        LocalDate toDate = fromDate.plusDays(days - 1L);
+        List<Booking> bookings = bookingRepository.findForRoomAvailability(room.getId(), fromDate, toDate);
+
+        return fromDate.datesUntil(toDate.plusDays(1L))
+                .map(date -> buildAvailabilityForDate(date, bookings))
+                .collect(Collectors.toList());
+    }
+
     // -------------------------------------------------------------------------
     // PATCH /api/rooms/{id}/status
     // -------------------------------------------------------------------------
@@ -70,6 +103,46 @@ public class RoomService {
     public RoomResponse updateStatus(String id, UpdateRoomStatusRequest request) {
         Room room = findRoomByStringId(id);
         room.setStatus(parseStatusOrThrow(request.getStatus()));
+        return roomMapper.toResponse(roomRepository.save(room));
+    }
+
+    // -------------------------------------------------------------------------
+    // PUT /api/rooms/{id}   — update thông tin phòng
+    // -------------------------------------------------------------------------
+    @Transactional
+    public RoomResponse updateRoom(String id, UpdateRoomRequest request) {
+        Room room = findRoomByStringId(id);
+
+        validateCapacityByRoomType(request.getType(), request.getCapacity());
+
+        room.setRoomName(request.getName());
+        room.setRoomType(request.getType());
+
+        if (request.getCapacity() != null) {
+            room.setCapacity(request.getCapacity());
+        }
+
+        room.setPricePerNight(request.getPricePerNight());
+
+        if (request.getPricePerHour() != null) {
+            room.setPricePerHour(request.getPricePerHour());
+        }
+
+        if (request.getStatus() != null) {
+            RoomStatus status = parseStatusOrNull(request.getStatus());
+            if (status != null) {
+                room.setStatus(status);
+            }
+        }
+
+        if (request.getAmenities() != null) {
+            room.setAmenities(request.getAmenities());
+        }
+
+        if (request.getDescription() != null) {
+            room.setDescription(request.getDescription());
+        }
+
         return roomMapper.toResponse(roomRepository.save(room));
     }
 
@@ -155,8 +228,95 @@ public class RoomService {
         } catch (IllegalArgumentException e) {
             throw new AppException(ErrorCode.INVALID_STATUS_TRANSITION,
                     "Invalid room status: " + status
-                            + ". Valid values: available, few_left, full, cleaning");
+                            + ". Valid values: available, in_use, pending_cleaning, cleaning_in_progress, cleaned, maintenance");
         }
+    }
+
+    private RoomAvailabilityDayResponse buildAvailabilityForDate(LocalDate date, List<Booking> bookings) {
+        LocalDateTime dayStart = date.atStartOfDay();
+        LocalDateTime dayEnd = date.plusDays(1L).atStartOfDay();
+
+        List<LocalDateTime[]> segments = bookings.stream()
+                .map(this::toDateRange)
+                .map(range -> intersect(range[0], range[1], dayStart, dayEnd))
+                .filter(segment -> segment != null)
+                .collect(Collectors.toList());
+
+        if (segments.isEmpty()) {
+            return RoomAvailabilityDayResponse.builder()
+                    .date(date.format(DATE_FMT))
+                    .booked(false)
+                    .bookedRanges(List.of())
+                    .availableFrom("00:00")
+                    .note("Trống cả ngày")
+                    .build();
+        }
+
+        List<String> ranges = segments.stream()
+                .map(segment -> formatRange(segment[0], segment[1]))
+                .collect(Collectors.toList());
+
+        LocalDateTime latestEnd = segments.stream()
+                .map(segment -> segment[1])
+                .max(LocalDateTime::compareTo)
+                .orElse(dayStart);
+        LocalDateTime availableAt = latestEnd.plusMinutes(CLEANUP_MINUTES);
+
+        String availableFrom = availableAt.toLocalDate().isAfter(date)
+                ? availableAt.format(TIME_FMT) + " (+1 ngày)"
+                : availableAt.format(TIME_FMT);
+
+        return RoomAvailabilityDayResponse.builder()
+                .date(date.format(DATE_FMT))
+                .booked(true)
+                .bookedRanges(ranges)
+                .availableFrom(availableFrom)
+                .note("Đã đặt")
+                .build();
+    }
+
+    private LocalDateTime[] toDateRange(Booking booking) {
+        boolean isHourType = booking.getBookingType() == BookingType.HOUR
+                && booking.getCheckInTime() != null
+                && booking.getCheckOutTime() != null;
+
+        LocalDateTime start = LocalDateTime.of(
+                booking.getCheckInDate(),
+                isHourType ? booking.getCheckInTime() : DEFAULT_DAY_CHECKIN_TIME
+        );
+
+        LocalDateTime end = LocalDateTime.of(
+                booking.getCheckOutDate(),
+                isHourType ? booking.getCheckOutTime() : DEFAULT_DAY_CHECKOUT_TIME
+        );
+
+        if (!end.isAfter(start)) {
+            end = start.plusMinutes(1);
+        }
+
+        return new LocalDateTime[] { start, end };
+    }
+
+    private LocalDateTime[] intersect(
+            LocalDateTime start,
+            LocalDateTime end,
+            LocalDateTime dayStart,
+            LocalDateTime dayEnd
+    ) {
+        LocalDateTime maxStart = start.isAfter(dayStart) ? start : dayStart;
+        LocalDateTime minEnd = end.isBefore(dayEnd) ? end : dayEnd;
+        if (!minEnd.isAfter(maxStart)) {
+            return null;
+        }
+        return new LocalDateTime[] { maxStart, minEnd };
+    }
+
+    private String formatRange(LocalDateTime start, LocalDateTime end) {
+        LocalDateTime clampedEnd = end.minusSeconds(1);
+        if (!clampedEnd.isAfter(start)) {
+            clampedEnd = end;
+        }
+        return start.format(TIME_FMT) + " - " + clampedEnd.format(TIME_FMT);
     }
 
 
@@ -165,6 +325,8 @@ public class RoomService {
 // -------------------------------------------------------------------------
     @Transactional
     public RoomResponse createRoom(CreateRoomRequest req, MultipartFile coverImage) {
+        validateCapacityByRoomType(req.getType(), req.getCapacity());
+
         // Upload cover image nếu có file
         String coverUrl = req.getCoverImageUrl();
         if (coverImage != null && !coverImage.isEmpty()) {
@@ -242,5 +404,26 @@ public class RoomService {
         room.setGalleryUrls(gallery);
         cloudinaryService.deleteByUrl(imageUrl);
         return roomMapper.toResponse(roomRepository.save(room));
+    }
+
+    private void validateCapacityByRoomType(String roomType, Integer capacity) {
+        if (capacity == null) {
+            return;
+        }
+
+        int maxCapacity = switch (roomType) {
+            case "Single Room" -> 1;
+            case "Twin Room", "Double Room" -> 2;
+            case "VIP Room" -> 3;
+            default -> 10;
+        };
+
+        if (capacity < 1 || capacity > maxCapacity) {
+            throw new AppException(
+                    ErrorCode.INVALID_ROOM_CAPACITY,
+                    "Capacity " + capacity + " is invalid for room type " + roomType
+                            + ". Maximum allowed is " + maxCapacity
+            );
+        }
     }
 }

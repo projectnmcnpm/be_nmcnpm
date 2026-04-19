@@ -31,11 +31,15 @@ public class BookingResponse {
     String checkOutTime;     // HH:mm
     String bookingType;      // day | hour
     BigDecimal total;
-    String status;           // upcoming | active | completed | cancelled
+    String status;           // upcoming | checked_in | in_stay | cancelled
+    String paymentStatus;    // unpaid | deposited | paid
+    String stayStatus;       // check_in | in_stay | cancelled
+    String refundStatus;     // none | eligible | ineligible | refunded
     String image;
     String paymentMethod;
     String paymentAmount;    // "30" hoặc "100" (phần trăm)
     String cancelReason;
+    String note;
     String createdAt;        // ISO-8601
 
     // ── QR Payment fields (chỉ có khi paymentMethod = bank) ──────────────────

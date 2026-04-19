@@ -27,6 +27,7 @@ public class RoomResponse {
     String id;
     String name;
     String type;
+    Integer capacity;
     BigDecimal price;
     BigDecimal pricePerHour;
     String status;       // lowercase: available / few_left / full / cleaning

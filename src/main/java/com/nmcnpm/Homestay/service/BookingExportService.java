@@ -4,8 +4,11 @@ import com.nmcnpm.Homestay.entity.Booking;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -26,10 +29,14 @@ public class BookingExportService {
         response.setContentType("text/csv; charset=UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"bookings_export.csv\"");
 
-        // BOM để Excel đọc đúng UTF-8
-        response.getOutputStream().write(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
+        try (
+                OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8);
+                BufferedWriter bw = new BufferedWriter(osw);
+                PrintWriter writer = new PrintWriter(bw)
+        ) {
+            // BOM để Excel đọc đúng UTF-8
+            writer.write('\uFEFF');
 
-        try (PrintWriter writer = response.getWriter()) {
             // Header
             writer.println(csvRow(
                     "Booking ID",

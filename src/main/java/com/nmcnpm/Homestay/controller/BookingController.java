@@ -2,6 +2,9 @@ package com.nmcnpm.Homestay.controller;
 
 import com.nmcnpm.Homestay.dto.request.CancelBookingRequest;
 import com.nmcnpm.Homestay.dto.request.CreateBookingRequest;
+import com.nmcnpm.Homestay.dto.request.UpdateBookingPaymentStatusRequest;
+import com.nmcnpm.Homestay.dto.request.UpdateBookingRequest;
+import com.nmcnpm.Homestay.dto.request.UpdateBookingRefundStatusRequest;
 import com.nmcnpm.Homestay.dto.request.UpdateBookingStatusRequest;
 import com.nmcnpm.Homestay.dto.response.ApiResponse;
 import com.nmcnpm.Homestay.dto.response.BookingResponse;
@@ -109,6 +112,18 @@ public class BookingController {
     }
 
     // ------------------------------------------------------------------
+    // PATCH /api/bookings/{id}
+    // ------------------------------------------------------------------
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MANAGER','RECEPTIONIST')")
+    public ApiResponse<BookingResponse> updateBooking(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateBookingRequest request
+    ) {
+        return ApiResponse.success(bookingService.updateBooking(id, request));
+    }
+
+    // ------------------------------------------------------------------
     // PATCH /api/bookings/{id}/status
     // ------------------------------------------------------------------
     @PatchMapping("/{id}/status")
@@ -118,6 +133,30 @@ public class BookingController {
             @Valid @RequestBody UpdateBookingStatusRequest request
     ) {
         return ApiResponse.success(bookingService.updateStatus(id, request));
+    }
+
+    // ------------------------------------------------------------------
+    // PATCH /api/bookings/{id}/payment-status
+    // ------------------------------------------------------------------
+    @PatchMapping("/{id}/payment-status")
+    @PreAuthorize("hasAnyRole('MANAGER','RECEPTIONIST')")
+    public ApiResponse<BookingResponse> updatePaymentStatus(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateBookingPaymentStatusRequest request
+    ) {
+        return ApiResponse.success(bookingService.updatePaymentStatus(id, request));
+    }
+
+    // ------------------------------------------------------------------
+    // PATCH /api/bookings/{id}/refund-status
+    // ------------------------------------------------------------------
+    @PatchMapping("/{id}/refund-status")
+    @PreAuthorize("hasAnyRole('MANAGER','RECEPTIONIST')")
+    public ApiResponse<BookingResponse> updateRefundStatus(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateBookingRefundStatusRequest request
+    ) {
+        return ApiResponse.success(bookingService.updateRefundStatus(id, request));
     }
 
     // ------------------------------------------------------------------

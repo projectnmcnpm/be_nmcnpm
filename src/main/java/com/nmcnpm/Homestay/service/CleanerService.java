@@ -93,13 +93,20 @@ public class CleanerService {
         OffsetDateTime now = OffsetDateTime.now();
 
         switch (newState) {
-            case IN_PROGRESS -> task.setStartedAt(now);
+            case IN_PROGRESS -> {
+                task.setStartedAt(now);
+                Room room = task.getRoom();
+                if (room != null) {
+                    room.setStatus(RoomStatus.CLEANING_IN_PROGRESS);
+                    roomRepository.save(room);
+                }
+            }
             case COMPLETED   -> {
                 task.setCompletedAt(now);
-                // Đồng bộ: cleaning -> available trong cùng transaction
+                // Đồng bộ: dọn xong -> cleaned trong cùng transaction
                 Room room = task.getRoom();
-                if (room != null && room.getStatus() == RoomStatus.CLEANING) {
-                    room.setStatus(RoomStatus.AVAILABLE);
+                if (room != null) {
+                    room.setStatus(RoomStatus.CLEANED);
                     roomRepository.save(room);
                 }
             }

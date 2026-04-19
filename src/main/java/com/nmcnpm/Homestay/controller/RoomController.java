@@ -1,9 +1,11 @@
 package com.nmcnpm.Homestay.controller;
 
 import com.nmcnpm.Homestay.dto.request.CreateRoomRequest;
+import com.nmcnpm.Homestay.dto.request.UpdateRoomRequest;
 import com.nmcnpm.Homestay.dto.request.UpdateRoomStatusRequest;
 import com.nmcnpm.Homestay.dto.response.ApiResponse;
 import com.nmcnpm.Homestay.dto.response.PagedResponse;
+import com.nmcnpm.Homestay.dto.response.RoomAvailabilityDayResponse;
 import com.nmcnpm.Homestay.dto.response.RoomResponse;
 import com.nmcnpm.Homestay.service.RoomService;
 import jakarta.validation.Valid;
@@ -12,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * Room endpoints:
@@ -32,7 +36,7 @@ public class RoomController {
     // GET /api/rooms
     //
     // Query params:
-    //   status  — available | few_left | full | cleaning  (optional)
+    //   status  — available | in_use | pending_cleaning | cleaning_in_progress | cleaned | maintenance (optional)
     //   search  — keyword tìm theo tên/loại phòng         (optional)
     //   page    — số trang, bắt đầu từ 0                  (default 0)
     //   size    — số item mỗi trang, tối đa 100           (default 10)
@@ -66,6 +70,14 @@ public class RoomController {
         return ApiResponse.success(roomService.getRoomById(id));
     }
 
+    @GetMapping("/{id}/availability")
+    public ApiResponse<List<RoomAvailabilityDayResponse>> getRoomAvailability(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "6") Integer days
+    ) {
+        return ApiResponse.success(roomService.getRoomAvailability(id, days));
+    }
+
     // ------------------------------------------------------------------
     // PATCH /api/rooms/{id}/status
     // ------------------------------------------------------------------
@@ -76,6 +88,18 @@ public class RoomController {
             @Valid @RequestBody UpdateRoomStatusRequest request
     ) {
         return ApiResponse.success(roomService.updateStatus(id, request));
+    }
+
+    // ------------------------------------------------------------------
+    // PUT /api/rooms/{id}   — update phòng hiện có
+    // ------------------------------------------------------------------
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ApiResponse<RoomResponse> updateRoom(
+            @PathVariable String id,
+            @Valid @ModelAttribute UpdateRoomRequest request
+    ) {
+        return ApiResponse.success(roomService.updateRoom(id, request));
     }
 
     // ------------------------------------------------------------------

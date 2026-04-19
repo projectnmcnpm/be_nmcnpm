@@ -28,6 +28,7 @@ public class RoomMapper {
                 .id(room.getId() != null ? room.getId().toString() : null)
                 .name(room.getRoomName())
                 .type(room.getRoomType())
+                .capacity(room.getCapacity())
                 .price(room.getPricePerNight())
                 .pricePerHour(room.getPricePerHour())
                 .status(room.getStatus() != null

@@ -20,12 +20,12 @@ public interface RoomRepository extends JpaRepository<Room, UUID> {
      * - search = null  -> không lọc theo keyword
      */
     @Query("""
-            SELECT r FROM Room r
-            WHERE (:status IS NULL OR r.status = :status)
-              AND (:search IS NULL OR
-                   LOWER(r.roomName) LIKE LOWER(CONCAT('%', :search, '%')) OR
-                   LOWER(r.roomType) LIKE LOWER(CONCAT('%', :search, '%')))
-            """)
+        SELECT r FROM Room r
+        WHERE (:status IS NULL OR r.status = :status)
+          AND (:search IS NULL OR
+               LOWER(r.roomName) LIKE :search OR
+               LOWER(r.roomType) LIKE :search)
+        """)
     Page<Room> findAllByFilter(
             @Param("status") RoomStatus status,
             @Param("search") String search,
@@ -42,7 +42,8 @@ public interface RoomRepository extends JpaRepository<Room, UUID> {
               AND b.deletedAt IS NULL
               AND b.status IN (
                   com.nmcnpm.Homestay.enums.BookingStatus.UPCOMING,
-                  com.nmcnpm.Homestay.enums.BookingStatus.ACTIVE)
+                  com.nmcnpm.Homestay.enums.BookingStatus.CHECKED_IN,
+                  com.nmcnpm.Homestay.enums.BookingStatus.IN_STAY)
             """)
     boolean hasActiveOrUpcomingBookings(@Param("roomId") UUID roomId);
 }

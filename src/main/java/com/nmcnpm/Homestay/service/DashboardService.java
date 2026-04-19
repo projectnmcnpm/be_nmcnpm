@@ -46,13 +46,13 @@ public class DashboardService {
 
         // --- Rooms ---
         long availableRooms = dashboardRoomRepository.countByStatus(RoomStatus.AVAILABLE);
-        long fewLeft        = dashboardRoomRepository.countByStatus(RoomStatus.FEW_LEFT);
-        long full           = dashboardRoomRepository.countByStatus(RoomStatus.FULL);
-        long cleaningRooms  = dashboardRoomRepository.countByStatus(RoomStatus.CLEANING);
+        long inUseRooms     = dashboardRoomRepository.countByStatus(RoomStatus.IN_USE);
+        long pendingClean   = dashboardRoomRepository.countByStatus(RoomStatus.PENDING_CLEANING);
+        long cleaningInProgress = dashboardRoomRepository.countByStatus(RoomStatus.CLEANING_IN_PROGRESS);
         long totalRooms     = dashboardRoomRepository.countTotal();
 
-        // activeRooms = few_left + full (phòng đang được sử dụng / không available)
-        long activeRooms = fewLeft + full;
+        long cleaningRooms = pendingClean + cleaningInProgress;
+        long activeRooms = inUseRooms;
 
         // occupancyRate = activeRooms / total * 100  (tránh chia 0)
         int occupancyRate = totalRooms > 0
@@ -90,9 +90,10 @@ public class DashboardService {
 
         // --- Counts ---
         long upcomingCount  = dashboardRepository.countByStatus(BookingStatus.UPCOMING);
-        long activeCount    = dashboardRepository.countByStatus(BookingStatus.ACTIVE);
+        long activeCount    = dashboardRepository.countByStatus(BookingStatus.IN_STAY);
         long availableRooms = dashboardRoomRepository.countByStatus(RoomStatus.AVAILABLE);
-        long cleaningRooms  = dashboardRoomRepository.countByStatus(RoomStatus.CLEANING);
+        long cleaningRooms  = dashboardRoomRepository.countByStatus(RoomStatus.PENDING_CLEANING)
+                + dashboardRoomRepository.countByStatus(RoomStatus.CLEANING_IN_PROGRESS);
 
         // --- Danh sách ngắn (tối đa UPCOMING_ACTIVE_LIMIT bản ghi mỗi loại) ---
         PageRequest shortPage = PageRequest.of(0, UPCOMING_ACTIVE_LIMIT);
@@ -104,7 +105,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
 
         List<BookingResponse> activeBookings = dashboardRepository
-                .findByStatusOrdered(BookingStatus.ACTIVE, shortPage)
+                .findByStatusOrdered(BookingStatus.IN_STAY, shortPage)
                 .stream()
                 .map(bookingMapper::toResponse)
                 .collect(Collectors.toList());

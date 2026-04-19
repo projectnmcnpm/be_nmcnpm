@@ -4,14 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 
-/**
- * Body cho PATCH /api/bookings/{id}/status
- * { "status": "checked_in" }
- */
 @Getter
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
-public class UpdateBookingStatusRequest {
+public class UpdateBookingPaymentStatusRequest {
 
-    @NotBlank(message = "status is required")
-    String status;
+    @NotBlank(message = "paymentStatus is required")
+    String paymentStatus;
 }

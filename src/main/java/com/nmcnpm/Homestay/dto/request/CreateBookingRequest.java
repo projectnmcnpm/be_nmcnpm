@@ -22,12 +22,21 @@ public class CreateBookingRequest {
     // userId = email của customer (frontend đang dùng email làm userId)
     String userId;
 
+    @NotBlank(message = "customerName is required")
+    String customerName;
+
+    @NotBlank(message = "customerEmail is required")
+    @Email(message = "customerEmail format invalid")
+    String customerEmail;
+
+    @NotBlank(message = "customerPhone is required")
     @Pattern(
             regexp = "^(0\\d{9,10}|\\+84\\d{9,10})$",
             message = "customerPhone format invalid"
     )
     String customerPhone;
 
+    @NotBlank(message = "customerIdNumber is required")
     @Pattern(
             regexp = "^\\d{12}$",
             message = "customerIdNumber must be 12 digits"
@@ -61,4 +70,6 @@ public class CreateBookingRequest {
     String paymentAmount;
 
     String cancelReason;
+
+    String note;
 }

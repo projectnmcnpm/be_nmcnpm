@@ -6,40 +6,44 @@ import org.springframework.http.HttpStatus;
 @Getter
 public enum ErrorCode {
     // Auth
-    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Email or password is incorrect", HttpStatus.UNAUTHORIZED),
-    EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", "Email already exists", HttpStatus.CONFLICT),
-    ACCOUNT_DISABLED("ACCOUNT_DISABLED", "Account is disabled", HttpStatus.FORBIDDEN),
+    INVALID_CREDENTIALS("INVALID_CREDENTIALS", "Email hoặc mật khẩu không đúng", HttpStatus.UNAUTHORIZED),
+    EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", "Email đã tồn tại", HttpStatus.CONFLICT),
+    ACCOUNT_DISABLED("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", HttpStatus.FORBIDDEN),
 
     // Resource
-    ACCOUNT_NOT_FOUND("ACCOUNT_NOT_FOUND", "Account not found", HttpStatus.NOT_FOUND),
-    ROOM_NOT_FOUND("ROOM_NOT_FOUND", "Room not found", HttpStatus.NOT_FOUND),
-    BOOKING_NOT_FOUND("BOOKING_NOT_FOUND", "Booking not found", HttpStatus.NOT_FOUND),
-    CUSTOMER_NOT_FOUND("CUSTOMER_NOT_FOUND", "Customer not found", HttpStatus.NOT_FOUND),
+    ACCOUNT_NOT_FOUND("ACCOUNT_NOT_FOUND", "Không tìm thấy tài khoản", HttpStatus.NOT_FOUND),
+    ROOM_NOT_FOUND("ROOM_NOT_FOUND", "Không tìm thấy phòng", HttpStatus.NOT_FOUND),
+    BOOKING_NOT_FOUND("BOOKING_NOT_FOUND", "Không tìm thấy đơn đặt phòng", HttpStatus.NOT_FOUND),
+    CUSTOMER_NOT_FOUND("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng", HttpStatus.NOT_FOUND),
 
     // Booking
-    ROOM_NOT_AVAILABLE("ROOM_NOT_AVAILABLE", "Room is not available for the selected dates", HttpStatus.CONFLICT),
-    BOOKING_CONFLICT("BOOKING_CONFLICT", "Room already booked for this period", HttpStatus.CONFLICT),
-    INVALID_DATE_RANGE("INVALID_DATE_RANGE", "Check-out must be after check-in", HttpStatus.BAD_REQUEST),
-    INVALID_STATUS_TRANSITION("INVALID_STATUS_TRANSITION", "Invalid status transition", HttpStatus.UNPROCESSABLE_ENTITY),
+    ROOM_NOT_AVAILABLE("ROOM_NOT_AVAILABLE", "Phòng không khả dụng trong khoảng thời gian đã chọn", HttpStatus.CONFLICT),
+    BOOKING_CONFLICT("BOOKING_CONFLICT", "Phòng đã có người đặt trong khoảng thời gian này", HttpStatus.CONFLICT),
+    INVALID_DATE_RANGE("INVALID_DATE_RANGE", "Ngày trả phòng phải sau ngày nhận phòng", HttpStatus.BAD_REQUEST),
+    INVALID_STATUS_TRANSITION("INVALID_STATUS_TRANSITION", "Chuyển trạng thái không hợp lệ", HttpStatus.UNPROCESSABLE_ENTITY),
+    INVALID_ROOM_CAPACITY("INVALID_ROOM_CAPACITY", "Sức chứa không hợp lệ với loại phòng", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_STATUS("INVALID_PAYMENT_STATUS", "Trạng thái thanh toán không hợp lệ", HttpStatus.BAD_REQUEST),
+    INVALID_REFUND_STATUS("INVALID_REFUND_STATUS", "Trạng thái hoàn tiền không hợp lệ", HttpStatus.BAD_REQUEST),
+    REFUND_NOT_ELIGIBLE("REFUND_NOT_ELIGIBLE", "Đơn đặt phòng không đủ điều kiện hoàn tiền theo chính sách", HttpStatus.BAD_REQUEST),
 
     // Payment QR
     PAYMENT_QR_EXPIRED("PAYMENT_QR_EXPIRED",
-            "Payment QR has expired. Please refresh to get a new QR code.",
+            "Mã QR đã hết hạn. Vui lòng làm mới để nhận mã mới.",
             HttpStatus.GONE),
     PAYMENT_QR_NOT_SUPPORTED("PAYMENT_QR_NOT_SUPPORTED",
-            "Payment QR is only available for bank transfer method",
+            "Mã QR chỉ hỗ trợ cho phương thức chuyển khoản ngân hàng",
             HttpStatus.BAD_REQUEST),
     TOO_MANY_PENDING_BOOKINGS("TOO_MANY_PENDING_BOOKINGS",
-            "You have too many pending unpaid bookings. Please complete or cancel existing bookings first.",
+            "Bạn có quá nhiều đơn chưa thanh toán. Vui lòng hoàn tất hoặc hủy bớt đơn hiện tại.",
             HttpStatus.TOO_MANY_REQUESTS),
 
     // Customer
-    DUPLICATE_PHONE("DUPLICATE_PHONE", "Phone number already exists", HttpStatus.CONFLICT),
-    DUPLICATE_CCCD("DUPLICATE_CCCD", "CCCD already exists", HttpStatus.CONFLICT),
+    DUPLICATE_PHONE("DUPLICATE_PHONE", "Số điện thoại đã tồn tại", HttpStatus.CONFLICT),
+    DUPLICATE_CCCD("DUPLICATE_CCCD", "CCCD đã tồn tại", HttpStatus.CONFLICT),
 
     // General
-    FORBIDDEN("FORBIDDEN", "You don't have permission", HttpStatus.FORBIDDEN),
-    INTERNAL_ERROR("INTERNAL_ERROR", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    FORBIDDEN("FORBIDDEN", "Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
+    INTERNAL_ERROR("INTERNAL_ERROR", "Lỗi hệ thống", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String message;

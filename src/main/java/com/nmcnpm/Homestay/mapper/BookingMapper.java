@@ -2,6 +2,7 @@ package com.nmcnpm.Homestay.mapper;
 
 import com.nmcnpm.Homestay.dto.response.BookingResponse;
 import com.nmcnpm.Homestay.entity.Booking;
+import com.nmcnpm.Homestay.enums.BookingStatus;
 import com.nmcnpm.Homestay.enums.PaymentMethod;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,12 +55,16 @@ public class BookingMapper {
                 .bookingType(b.getBookingType() != null ? b.getBookingType().name().toLowerCase() : null)
                 .total(b.getTotalAmount())
                 .status(b.getStatus() != null ? b.getStatus().name().toLowerCase() : null)
+                .paymentStatus(resolvePaymentStatus(b))
+                .stayStatus(resolveStayStatus(b.getStatus()))
+                .refundStatus(resolveRefundStatus(b))
                 .image(b.getRoomImageSnapshot())
                 .paymentMethod(b.getPaymentMethod() != null ? b.getPaymentMethod().name().toLowerCase() : null)
                 .paymentAmount(b.getPaymentPercent() != null
                         ? String.valueOf(b.getPaymentPercent())
                         : (b.getPaymentAmount() != null ? b.getPaymentAmount().toPlainString() : null))
                 .cancelReason(b.getCancelReason())
+                .note(b.getNote())
                 .createdAt(b.getCreatedAt() != null ? b.getCreatedAt().toString() : null);
 
         // Thêm QR fields nếu là thanh toán bank và có dữ liệu QR
@@ -88,5 +93,48 @@ public class BookingMapper {
         }
 
         return builder.build();
+    }
+
+    private String resolvePaymentStatus(Booking b) {
+        Integer percent = b.getPaymentPercent();
+        if (percent == null || percent <= 0) {
+            return "unpaid";
+        }
+        if (percent >= 100) {
+            return "paid";
+        }
+        return "deposited";
+    }
+
+    private String resolveStayStatus(BookingStatus status) {
+        if (status == null) {
+            return "check_in";
+        }
+        return switch (status) {
+            case UPCOMING -> "check_in";
+            case CHECKED_IN -> "check_in";
+            case IN_STAY -> "in_stay";
+            case CHECKED_OUT -> "check_out";
+            case CANCELLED -> "cancelled";
+            case ACTIVE -> "in_stay";
+            case COMPLETED -> "check_out";
+        };
+    }
+
+    private String resolveRefundStatus(Booking b) {
+        String note = b.getNote();
+        if (note == null || note.isBlank()) {
+            return "none";
+        }
+        if (note.contains("REFUND_STATUS=REFUNDED")) {
+            return "refunded";
+        }
+        if (note.contains("REFUND_STATUS=ELIGIBLE")) {
+            return "eligible";
+        }
+        if (note.contains("REFUND_STATUS=INELIGIBLE")) {
+            return "ineligible";
+        }
+        return "none";
     }
 }

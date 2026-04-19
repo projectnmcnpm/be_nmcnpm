@@ -7,10 +7,12 @@ import com.nmcnpm.Homestay.entity.Customer;
 import com.nmcnpm.Homestay.exception.AppException;
 import com.nmcnpm.Homestay.exception.ErrorCode;
 import com.nmcnpm.Homestay.mapper.CustomerMapper;
+import com.nmcnpm.Homestay.repository.BookingRepository;
 import com.nmcnpm.Homestay.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final BookingRepository  bookingRepository;
     private final CustomerMapper     customerMapper;
 
     private static final DateTimeFormatter LABEL_FMT =
@@ -35,7 +38,23 @@ public class CustomerService {
     public List<CustomerResponse> getAllCustomers() {
         return customerRepository.findAll()
                 .stream()
-                .map(customerMapper::toResponse)
+                .map(customer -> {
+                    if (customer.getEmail() == null || customer.getEmail().isBlank()) {
+                        String fallbackEmail = bookingRepository
+                                .findRecentUserIdentifiersByCustomerId(
+                                        customer.getId(),
+                                        PageRequest.of(0, 1)
+                                )
+                                .stream()
+                                .findFirst()
+                                .orElse(null);
+
+                        if (fallbackEmail != null && fallbackEmail.contains("@")) {
+                            customer.setEmail(fallbackEmail);
+                        }
+                    }
+                    return customerMapper.toResponse(customer);
+                })
                 .collect(Collectors.toList());
     }
 
