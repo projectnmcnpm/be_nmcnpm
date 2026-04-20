@@ -20,6 +20,7 @@ public enum ErrorCode {
     ROOM_NOT_AVAILABLE("ROOM_NOT_AVAILABLE", "Phòng không khả dụng trong khoảng thời gian đã chọn", HttpStatus.CONFLICT),
     BOOKING_CONFLICT("BOOKING_CONFLICT", "Phòng đã có người đặt trong khoảng thời gian này", HttpStatus.CONFLICT),
     INVALID_DATE_RANGE("INVALID_DATE_RANGE", "Ngày trả phòng phải sau ngày nhận phòng", HttpStatus.BAD_REQUEST),
+    BOOKING_START_IN_PAST("BOOKING_START_IN_PAST", "Ngày/giờ nhận phòng không được ở trong quá khứ", HttpStatus.BAD_REQUEST),
     INVALID_STATUS_TRANSITION("INVALID_STATUS_TRANSITION", "Chuyển trạng thái không hợp lệ", HttpStatus.UNPROCESSABLE_ENTITY),
     INVALID_ROOM_CAPACITY("INVALID_ROOM_CAPACITY", "Sức chứa không hợp lệ với loại phòng", HttpStatus.BAD_REQUEST),
     INVALID_PAYMENT_STATUS("INVALID_PAYMENT_STATUS", "Trạng thái thanh toán không hợp lệ", HttpStatus.BAD_REQUEST),

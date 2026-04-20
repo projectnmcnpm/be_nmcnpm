@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeParseException;
@@ -127,10 +129,16 @@ public class BookingService {
         // 2. Parse ngày
         LocalDate checkIn  = parseDateOrThrow(req.getCheckIn(),  "checkIn");
         LocalDate checkOut = parseDateOrThrow(req.getCheckOut(), "checkOut");
+        BookingType bookingType = parseBookingTypeOrDefault(req.getBookingType());
 
-        if (checkOut.isBefore(checkIn)) {
-            throw new AppException(ErrorCode.INVALID_DATE_RANGE);
-        }
+        LocalTime checkInTime = bookingType == BookingType.HOUR
+                ? parseTimeOrThrow(req.getCheckInTime(), "checkInTime")
+                : null;
+        LocalTime checkOutTime = bookingType == BookingType.HOUR
+                ? parseTimeOrThrow(req.getCheckOutTime(), "checkOutTime")
+                : null;
+
+        validateBookingTiming(checkIn, checkOut, checkInTime, checkOutTime, bookingType);
 
         // 3. Check conflict
         if (bookingRepository.hasConflict(roomUUID, checkIn, checkOut)) {
@@ -141,7 +149,6 @@ public class BookingService {
         Customer customer = resolveCustomer(req);
 
         // 5. Xây dựng entity
-        BookingType bookingType = parseBookingTypeOrDefault(req.getBookingType());
 
         Integer requestedPaymentPercent = null;
         if (req.getPaymentAmount() != null) {
@@ -175,10 +182,8 @@ public class BookingService {
                 .customerIdNumber(req.getCustomerIdNumber())
                 .checkInDate(checkIn)
                 .checkOutDate(checkOut)
-                .checkInTime(req.getCheckInTime() != null
-                        ? java.time.LocalTime.parse(req.getCheckInTime()) : null)
-                .checkOutTime(req.getCheckOutTime() != null
-                        ? java.time.LocalTime.parse(req.getCheckOutTime()) : null)
+                .checkInTime(checkInTime)
+                .checkOutTime(checkOutTime)
                 .bookingType(bookingType)
                 .totalAmount(req.getTotal())
                 .status(BookingStatus.UPCOMING)
@@ -221,9 +226,16 @@ public class BookingService {
 
         LocalDate checkIn = parseDateOrThrow(req.getCheckIn(), "checkIn");
         LocalDate checkOut = parseDateOrThrow(req.getCheckOut(), "checkOut");
-        if (checkOut.isBefore(checkIn)) {
-            throw new AppException(ErrorCode.INVALID_DATE_RANGE);
-        }
+        BookingType bookingType = parseBookingTypeOrDefault(req.getBookingType());
+
+        LocalTime checkInTime = bookingType == BookingType.HOUR
+                ? parseTimeOrThrow(req.getCheckInTime(), "checkInTime")
+                : null;
+        LocalTime checkOutTime = bookingType == BookingType.HOUR
+                ? parseTimeOrThrow(req.getCheckOutTime(), "checkOutTime")
+                : null;
+
+        validateBookingTiming(checkIn, checkOut, checkInTime, checkOutTime, bookingType);
 
         UUID bookingUUID = parseUuidOrThrow(id, ErrorCode.BOOKING_NOT_FOUND);
         if (bookingRepository.hasConflictExcludingBooking(bookingUUID, roomUUID, checkIn, checkOut)) {
@@ -247,11 +259,9 @@ public class BookingService {
         booking.setCustomerIdNumber(req.getCustomerIdNumber());
         booking.setCheckInDate(checkIn);
         booking.setCheckOutDate(checkOut);
-        booking.setCheckInTime(req.getCheckInTime() != null
-                ? java.time.LocalTime.parse(req.getCheckInTime()) : null);
-        booking.setCheckOutTime(req.getCheckOutTime() != null
-                ? java.time.LocalTime.parse(req.getCheckOutTime()) : null);
-        booking.setBookingType(parseBookingTypeOrDefault(req.getBookingType()));
+        booking.setCheckInTime(checkInTime);
+        booking.setCheckOutTime(checkOutTime);
+        booking.setBookingType(bookingType);
         booking.setTotalAmount(req.getTotal());
         booking.setNote(req.getNote());
 
@@ -478,7 +488,7 @@ public class BookingService {
                     "Thông tin khách hàng không khớp giữa số điện thoại và CCCD");
         }
 
-        Customer customer = byPhone != null ? byPhone : byCccd;
+        Customer customer = byCccd != null ? byCccd : byPhone;
 
         if (customer == null) {
             customer = Customer.builder()
@@ -496,8 +506,12 @@ public class BookingService {
         if (!email.isBlank()) {
             customer.setEmail(email);
         }
-        customer.setPhone(phone);
-        customer.setCccd(cccd);
+        if (!phone.isBlank()) {
+            customer.setPhone(phone);
+        }
+        if (!cccd.isBlank()) {
+            customer.setCccd(cccd);
+        }
 
         return customerRepository.save(customer);
     }
@@ -697,6 +711,50 @@ public class BookingService {
         if (s == null || s.isBlank()) return BookingType.DAY;
         try { return BookingType.valueOf(s.toUpperCase()); }
         catch (IllegalArgumentException e) { return BookingType.DAY; }
+    }
+
+    private void validateBookingTiming(
+            LocalDate checkIn,
+            LocalDate checkOut,
+            LocalTime checkInTime,
+            LocalTime checkOutTime,
+            BookingType bookingType
+    ) {
+        LocalDate today = LocalDate.now();
+
+        if (checkIn.isBefore(today)) {
+            throw new AppException(ErrorCode.BOOKING_START_IN_PAST);
+        }
+
+        if (bookingType == BookingType.HOUR) {
+            LocalDateTime start = LocalDateTime.of(checkIn, checkInTime);
+            LocalDateTime end = LocalDateTime.of(checkOut, checkOutTime);
+
+            if (!end.isAfter(start)) {
+                throw new AppException(ErrorCode.INVALID_DATE_RANGE);
+            }
+
+            if (start.isBefore(LocalDateTime.now())) {
+                throw new AppException(ErrorCode.BOOKING_START_IN_PAST);
+            }
+            return;
+        }
+
+        if (!checkOut.isAfter(checkIn)) {
+            throw new AppException(ErrorCode.INVALID_DATE_RANGE);
+        }
+    }
+
+    private LocalTime parseTimeOrThrow(String s, String fieldName) {
+        if (s == null || s.isBlank()) {
+            throw new AppException(ErrorCode.INVALID_DATE_RANGE, fieldName + " is required");
+        }
+
+        try {
+            return LocalTime.parse(s);
+        } catch (DateTimeParseException e) {
+            throw new AppException(ErrorCode.INVALID_DATE_RANGE, fieldName + " must be HH:mm");
+        }
     }
 
     private PaymentMethod parsePaymentMethodOrNull(String s) {

@@ -63,21 +63,48 @@ public class CustomerService {
     // -------------------------------------------------------------------------
     @Transactional
     public CustomerResponse createCustomer(CreateCustomerRequest req) {
-        // Kiểm tra unique phone / cccd / email
-        if (customerRepository.existsByPhone(req.getPhone())) {
-            throw new AppException(ErrorCode.DUPLICATE_PHONE);
+        OffsetDateTime lastVisit = parseOffsetDateTimeOrNull(req.getLastVisit());
+
+        Customer byCccd = customerRepository.findByCccd(req.getCccd()).orElse(null);
+        Customer byPhone = customerRepository.findByPhone(req.getPhone()).orElse(null);
+
+        if (byCccd != null && byPhone != null && !byCccd.getId().equals(byPhone.getId())) {
+            throw new AppException(ErrorCode.DUPLICATE_CCCD,
+                    "Số điện thoại đang gắn với một khách hàng khác");
         }
-        if (customerRepository.existsByCccd(req.getCccd())) {
-            throw new AppException(ErrorCode.DUPLICATE_CCCD);
+
+        Customer customer = byCccd != null ? byCccd : byPhone;
+
+        if (customer != null) {
+            customer.setFullName(req.getName());
+            customer.setPhone(req.getPhone());
+            customer.setCccd(req.getCccd());
+
+            if (req.getEmail() != null && !req.getEmail().isBlank()
+                    && !req.getEmail().equals(customer.getEmail())
+                    && customerRepository.existsByEmail(req.getEmail())) {
+                throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+
+            customer.setEmail(req.getEmail());
+            customer.setLastVisitAt(lastVisit);
+            customer.setColorTag(req.getColor());
+            customer = customerRepository.save(customer);
+
+            if (customer.getCreatedAt() != null) {
+                customer.setJoinedLabel(customer.getCreatedAt().format(LABEL_FMT));
+                customer = customerRepository.save(customer);
+            }
+
+            return customerMapper.toResponse(customer);
         }
+
         if (req.getEmail() != null && !req.getEmail().isBlank()
                 && customerRepository.existsByEmail(req.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        OffsetDateTime lastVisit = parseOffsetDateTimeOrNull(req.getLastVisit());
-
-        Customer customer = Customer.builder()
+        Customer newCustomer = Customer.builder()
                 .fullName(req.getName())
                 .phone(req.getPhone())
                 .cccd(req.getCccd())
@@ -86,15 +113,15 @@ public class CustomerService {
                 .colorTag(req.getColor())
                 .build();
 
-        customer = customerRepository.save(customer);
+        Customer savedCustomer = customerRepository.save(newCustomer);
 
         // Gán joined_label sau khi có created_at
-        if (customer.getCreatedAt() != null) {
-            customer.setJoinedLabel(customer.getCreatedAt().format(LABEL_FMT));
-            customer = customerRepository.save(customer);
+        if (savedCustomer.getCreatedAt() != null) {
+            savedCustomer.setJoinedLabel(savedCustomer.getCreatedAt().format(LABEL_FMT));
+            savedCustomer = customerRepository.save(savedCustomer);
         }
 
-        return customerMapper.toResponse(customer);
+        return customerMapper.toResponse(savedCustomer);
     }
 
     // -------------------------------------------------------------------------

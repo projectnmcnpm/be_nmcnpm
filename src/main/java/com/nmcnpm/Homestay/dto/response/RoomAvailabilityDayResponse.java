@@ -16,6 +16,7 @@ public class RoomAvailabilityDayResponse {
     String date;                // yyyy-MM-dd
     boolean booked;             // true nếu có lịch đặt trong ngày
     List<String> bookedRanges;  // Ví dụ: ["10:00 - 10:20", "14:00 - 15:30"]
+    List<String> availableRanges; // Ví dụ: ["00:00 - 09:40", "16:20 - 23:59"]
     String availableFrom;       // Ví dụ: "10:40" (đã cộng 20 phút dọn dẹp)
     String note;                // "Trống cả ngày" | "Đã đặt"
 }

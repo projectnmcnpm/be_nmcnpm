@@ -247,6 +247,7 @@ public class RoomService {
                     .date(date.format(DATE_FMT))
                     .booked(false)
                     .bookedRanges(List.of())
+                    .availableRanges(List.of("00:00 - 23:59"))
                     .availableFrom("00:00")
                     .note("Trống cả ngày")
                     .build();
@@ -255,6 +256,22 @@ public class RoomService {
         List<String> ranges = segments.stream()
                 .map(segment -> formatRange(segment[0], segment[1]))
                 .collect(Collectors.toList());
+
+        List<LocalDateTime[]> bufferedSegments = segments.stream()
+                .map(segment -> new LocalDateTime[] {
+                        segment[0],
+                        segment[1].plusMinutes(CLEANUP_MINUTES).isBefore(dayEnd)
+                                ? segment[1].plusMinutes(CLEANUP_MINUTES)
+                                : dayEnd
+                })
+                .collect(Collectors.toList());
+
+        List<LocalDateTime[]> mergedBufferedSegments = mergeSegments(bufferedSegments);
+        List<String> availableRanges = buildAvailableRanges(
+                mergedBufferedSegments,
+                dayStart,
+                dayEnd
+        );
 
         LocalDateTime latestEnd = segments.stream()
                 .map(segment -> segment[1])
@@ -270,9 +287,83 @@ public class RoomService {
                 .date(date.format(DATE_FMT))
                 .booked(true)
                 .bookedRanges(ranges)
+                .availableRanges(availableRanges)
                 .availableFrom(availableFrom)
-                .note("Đã đặt")
+                .note(availableRanges.isEmpty() ? "Hết giờ trống" : "Còn giờ trống")
                 .build();
+    }
+
+    private List<LocalDateTime[]> mergeSegments(List<LocalDateTime[]> segments) {
+        if (segments.isEmpty()) {
+            return List.of();
+        }
+
+        List<LocalDateTime[]> sortedSegments = segments.stream()
+                .sorted((a, b) -> a[0].compareTo(b[0]))
+                .collect(Collectors.toList());
+
+        List<LocalDateTime[]> merged = new ArrayList<>();
+        LocalDateTime currentStart = sortedSegments.get(0)[0];
+        LocalDateTime currentEnd = sortedSegments.get(0)[1];
+
+        for (int i = 1; i < sortedSegments.size(); i++) {
+            LocalDateTime nextStart = sortedSegments.get(i)[0];
+            LocalDateTime nextEnd = sortedSegments.get(i)[1];
+
+            if (!nextStart.isAfter(currentEnd)) {
+                if (nextEnd.isAfter(currentEnd)) {
+                    currentEnd = nextEnd;
+                }
+                continue;
+            }
+
+            merged.add(new LocalDateTime[] { currentStart, currentEnd });
+            currentStart = nextStart;
+            currentEnd = nextEnd;
+        }
+
+        merged.add(new LocalDateTime[] { currentStart, currentEnd });
+        return merged;
+    }
+
+    private List<String> buildAvailableRanges(
+            List<LocalDateTime[]> blockedSegments,
+            LocalDateTime dayStart,
+            LocalDateTime dayEnd
+    ) {
+        if (blockedSegments.isEmpty()) {
+            return List.of("00:00 - 23:59");
+        }
+
+        List<String> ranges = new ArrayList<>();
+        LocalDateTime cursor = dayStart;
+
+        for (LocalDateTime[] blocked : blockedSegments) {
+            LocalDateTime blockedStart = blocked[0];
+            LocalDateTime blockedEnd = blocked[1];
+
+            if (blockedStart.isAfter(cursor)) {
+                ranges.add(formatAvailabilityRange(cursor, blockedStart));
+            }
+
+            if (blockedEnd.isAfter(cursor)) {
+                cursor = blockedEnd;
+            }
+        }
+
+        if (dayEnd.isAfter(cursor)) {
+            ranges.add(formatAvailabilityRange(cursor, dayEnd));
+        }
+
+        return ranges;
+    }
+
+    private String formatAvailabilityRange(LocalDateTime start, LocalDateTime endExclusive) {
+        LocalDateTime inclusiveEnd = endExclusive.minusSeconds(1);
+        if (!inclusiveEnd.isAfter(start)) {
+            inclusiveEnd = start;
+        }
+        return start.format(TIME_FMT) + " - " + inclusiveEnd.format(TIME_FMT);
     }
 
     private LocalDateTime[] toDateRange(Booking booking) {
